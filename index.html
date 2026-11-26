@@ -92,29 +92,24 @@ code{font-family:var(--mono);font-size:.92em}
 
     <section class="panel" aria-label="Readout">
       <div class="seg" role="group" aria-label="View">
-        <button type="button" id="vS" aria-pressed="true">Spectrum</button>
-        <button type="button" id="vP" aria-pressed="false">Pendulums</button>
+        <button type="button" id="vP" aria-pressed="true">Pendulums</button>
+        <button type="button" id="vS" aria-pressed="false">Spectrum</button>
       </div>
       <div class="stats">
         <div class="stat"><div class="k">Exchange J</div><div class="v" id="oJ">–</div></div>
         <div class="stat"><div class="k">Dipolar ν<sub>dd</sub></div><div class="v" id="oD">–</div></div>
         <div class="stat"><div class="k" id="k3">Distance r</div><div class="v" id="oR">–</div></div>
       </div>
-      <div class="view" id="specBox"><canvas id="spec" role="img" aria-label="First-derivative powder EPR spectrum of the coupled spin pair"></canvas></div>
-      <div class="view" id="pendBox" hidden><canvas id="pend" role="img" aria-label="Two pendulums for the two spins, spaced by the inter-spin distance and joined by a spring whose stiffness is the flip-flop coupling"></canvas></div>
+      <div class="view" id="specBox" hidden><canvas id="spec" role="img" aria-label="First-derivative powder EPR spectrum of the coupled spin pair"></canvas></div>
+      <div class="view" id="pendBox"><canvas id="pend" role="img" aria-label="Two pendulums for the two spins, spaced by the inter-spin distance and joined by a spring whose stiffness is the flip-flop coupling"></canvas></div>
       <p class="regime" id="regime" aria-live="polite"></p>
-      <div class="row" id="thRow" hidden>
-        <label for="th">Orientation θ</label>
-        <input type="range" id="th" min="0" max="90" step="0.5" value="90">
-        <output id="tho" for="th"></output>
-      </div>
-      <div class="row" id="kickRow" hidden><button class="btn" id="kick" type="button">Kick spin A again</button></div>
+      <div class="row" id="kickRow"><button class="btn" id="kick" type="button">Kick spin A again</button></div>
     </section>
   </div>
 
   <section class="notes" aria-label="Notes">
     <div><h2>Spectrum</h2><p>First-derivative, field-swept style display on a frequency axis, powder-averaged over θ with a 2 MHz Gaussian line. The g offset is fixed at Δ = 20 MHz so the weak and strong regimes have a fixed boundary.</p></div>
-    <div><h2>Pendulums</h2><p>Each pendulum is a spin; the 20 MHz detuning makes them slightly different lengths. The spring is the flip-flop term J − d/2, where d = ν<sub>dd</sub>(1 − 3cos²θ). Energy moved from A to B peaks at B²/(Δ² + B²) and repeats every 1/√(Δ² + B²).</p></div>
+    <div><h2>Pendulums</h2><p>Each pendulum is a spin; the 20 MHz detuning makes them slightly different lengths. The spring is the flip-flop term J − d/2, where d = ν<sub>dd</sub>(1 − 3cos²θ). The pendulums are shown at the magic angle, θ = 54.7°, where d = 0, so the spring is J alone and the dipolar coupling only sets the spacing. Energy moved from A to B peaks at J²/(Δ² + J²) and repeats every 1/√(Δ² + J²).</p></div>
     <div><h2>Distance</h2><p>Pendulum spacing follows r = (52.04 / ν<sub>dd</sub>)<sup>1/3</sup> nm. J is treated as an independent knob here; in real molecules it falls off steeply with distance and depends on the bridge.</p></div>
   </section>
 </div>
@@ -122,9 +117,9 @@ code{font-family:var(--mono);font-size:.92em}
 <script>
 (function(){
 const JMAX=80,DMAX=40,FR=120,NP=600,NC=300,DL=20,LW=2,RMIN=1.1,RMAX=4;
-let J=10,D=8,view='S',t0=performance.now(),raf=null,sepNow=null;
+let J=10,D=8,view='P',t0=performance.now(),raf=null,sepNow=null;
 const $=id=>document.getElementById(id);
-const pad=$('pad'),sp=$('spec'),pe=$('pend'),th=$('th');
+const pad=$('pad'),sp=$('spec'),pe=$('pend');
 const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const rOf=d=>d>0.01?Math.cbrt(52.04/d):Infinity;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)');
@@ -191,7 +186,7 @@ function drawSpec(){
   for(let i=0;i<NP;i++){const x=pl+i/(NP-1)*pw,yy=base-y[i]/mx*sc;i?c.lineTo(x,yy):c.moveTo(x,yy)}c.stroke();
 }
 
-function coupling(){const cc=Math.cos(+th.value*Math.PI/180),d=D*(1-3*cc*cc);return{d,B:J-d/2}}
+function coupling(){return{d:0,B:J}}
 
 function drawPend(now){
   const f=fit(pe);if(!f)return;const{c,W,H}=f;
@@ -237,7 +232,6 @@ function loop(now){drawPend(reduce.matches?t0+1500:now);raf=(view==='P'&&!reduce
 
 function update(){
   const aJ=Math.abs(J);
-  $('tho').textContent=(+th.value).toFixed(1)+'°';
   $('oJ').textContent=(J<-0.05?'−':J>0.05?'+':'')+aJ.toFixed(1)+' MHz';
   $('oD').textContent=D.toFixed(1)+' MHz';
   pad.setAttribute('aria-valuetext','J '+J.toFixed(1)+' MHz, dipolar '+D.toFixed(1)+' MHz');
@@ -257,8 +251,8 @@ function update(){
     $('k3').textContent='Max transfer';
     $('oR').textContent=Math.round(fr*100)+'%';
     const per=(1000/C).toFixed(0)+' ns';
-    const spr=Math.abs(B)<0.3?'No spring (J − d/2 ≈ 0): the pendulums swing independently, however close they are.':
-      'Spring stiffness J − d/2 = '+B.toFixed(1)+' MHz ('+(B>0?'orange, positive':'green, negative')+'). Energy goes A → B → A every '+per+'.';
+    const spr=Math.abs(B)<0.3?'No spring (J = 0): at the magic angle the dipolar flip-flop term vanishes, so the pendulums swing independently however close they are.':
+      'Spring stiffness = J = '+B.toFixed(1)+' MHz ('+(B>0?'orange, positive':'green, negative')+'). Energy goes A → B → A every '+per+'.';
     const tune=fr>0.8?' The spring beats the detuning: near-complete swap, and the pendulums lock into in-phase and anti-phase modes (triplet and singlet).':fr<0.2?' The detuning beats the spring: only a little energy leaks across (weak coupling).':' Partial transfer: spring and detuning are comparable.';
     t=spr+tune;
     if(!raf)drawPend(reduce.matches?t0+1500:performance.now());
@@ -269,7 +263,7 @@ function update(){
 
 function setView(v){
   view=v;$('vS').setAttribute('aria-pressed',v==='S');$('vP').setAttribute('aria-pressed',v==='P');
-  $('specBox').hidden=v!=='S';$('pendBox').hidden=v!=='P';$('thRow').hidden=v!=='P';$('kickRow').hidden=v!=='P';
+  $('specBox').hidden=v!=='S';$('pendBox').hidden=v!=='P';$('kickRow').hidden=v!=='P';
   if(v==='P'){t0=performance.now();sepNow=null}
   update();
   if(v==='P'&&!raf&&!reduce.matches)raf=requestAnimationFrame(loop);
@@ -284,8 +278,6 @@ pad.addEventListener('keydown',e=>{const st=e.shiftKey?5:1;let h=true;
   if(e.key==='ArrowLeft')J=Math.max(-JMAX,J-st);else if(e.key==='ArrowRight')J=Math.min(JMAX,J+st);
   else if(e.key==='ArrowUp')D=Math.min(DMAX,D+st);else if(e.key==='ArrowDown')D=Math.max(0,D-st);else h=false;
   if(h){e.preventDefault();update();if(view==='P')t0=performance.now()}});
-th.addEventListener('input',update);
-th.addEventListener('change',()=>{if(view==='P')t0=performance.now()});
 $('vS').onclick=()=>setView('S');$('vP').onclick=()=>setView('P');
 $('kick').onclick=()=>{t0=performance.now();if(reduce.matches)update()};
 $('zero').onclick=()=>{J=0;update();t0=performance.now()};
@@ -293,7 +285,7 @@ let rs;window.addEventListener('resize',()=>{clearTimeout(rs);rs=setTimeout(upda
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
 new MutationObserver(update).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(update);
-update();
+setView('P');
 })();
 </script>
 
