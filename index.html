@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Interactive pad for two coupled spins: drag exchange J and dipolar coupling to see the derivative EPR powder spectrum or a coupled-pendulum picture.">
+<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Spin Pair Coupling</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Fraunces:opsz,wght@9..144,500&display=swap">
+<style>
+/* Layout: lab-notebook tool. Narrow header, then a two-column bench: control pad left, readout right; stacks on phones. */
+:root{
+  --bg:#f6f7f9; --panel:#ffffff; --ink:#15181d; --ink-2:#4a505a; --ink-3:#868c96;
+  --line:#dde1e7; --line-2:#c4cad3;
+  --accent:#4b3fb5; --spin-a:#4b3fb5; --spin-b:#0e7a5f;
+  --trace:#1f6fd1; --pos:#d2572b; --neg:#16946f;
+  --q-pake:rgba(75,63,181,.09); --q-strong:rgba(210,87,43,.09); --q-neg:rgba(31,111,209,.09);
+  --q-weak:rgba(120,126,136,.06); --q-pos:rgba(22,148,111,.09);
+  --accent-bg:#ecebfb; --accent-ink:#2f2788;
+  --display:"Fraunces",Georgia,serif; --sans:"IBM Plex Sans",system-ui,-apple-system,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111317; --panel:#181b20; --ink:#eceef2; --ink-2:#b4bac4; --ink-3:#7c838e;
+  --line:#2a2f37; --line-2:#3a404a;
+  --accent:#9d94f0; --spin-a:#8278e6; --spin-b:#2fb18c;
+  --trace:#5aa0f2; --pos:#ec7a4f; --neg:#33c095;
+  --q-pake:rgba(130,120,230,.14); --q-strong:rgba(236,122,79,.13); --q-neg:rgba(90,160,242,.13);
+  --q-weak:rgba(160,166,176,.07); --q-pos:rgba(51,192,149,.13);
+  --accent-bg:#26224d; --accent-ink:#d2cdfb; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111317; --panel:#181b20; --ink:#eceef2; --ink-2:#b4bac4; --ink-3:#7c838e;
+  --line:#2a2f37; --line-2:#3a404a;
+  --accent:#9d94f0; --spin-a:#8278e6; --spin-b:#2fb18c;
+  --trace:#5aa0f2; --pos:#ec7a4f; --neg:#33c095;
+  --q-pake:rgba(130,120,230,.14); --q-strong:rgba(236,122,79,.13); --q-neg:rgba(90,160,242,.13);
+  --q-weak:rgba(160,166,176,.07); --q-pos:rgba(51,192,149,.13);
+  --accent-bg:#26224d; --accent-ink:#d2cdfb; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55}
+.page{max-width:1040px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+header{display:grid;gap:6px}
+h1{font-family:var(--display);font-weight:500;font-size:clamp(28px,4vw,38px);line-height:1.1;margin:0;text-wrap:balance;letter-spacing:-.01em}
+.sub{color:var(--ink-2);max-width:68ch;margin:0}
+.ham{font-family:var(--mono);font-size:12.5px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;overflow-x:auto;white-space:nowrap}
+.bench{display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start}
+@media(max-width:760px){.bench{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;min-width:0}
+.eyebrow{font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:500}
+#pad{width:100%;aspect-ratio:1/1;max-width:100%;display:block;border-radius:8px;border:1px solid var(--line);cursor:crosshair;touch-action:none}
+#pad:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:13px;color:var(--ink-3);margin:0}
+.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0}
+.stat .k{font-size:12px;color:var(--ink-3)}
+.stat .v{font-family:var(--mono);font-size:17px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;justify-self:start}
+.seg button{font:inherit;font-size:13.5px;padding:7px 16px;border:0;background:transparent;color:var(--ink-2);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--accent-bg);color:var(--accent-ink);font-weight:500}
+.seg button:focus-visible,.btn:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.view{position:relative;min-width:0}
+.view canvas{width:100%;display:block}
+#spec{height:230px}
+#pend{height:270px}
+.regime{font-size:14px;color:var(--ink-2);min-height:44px;margin:0}
+.row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.row label{font-size:13.5px;color:var(--ink-2);min-width:100px}
+.row input[type=range]{flex:1;min-width:140px;accent-color:var(--accent)}
+.row output{font-family:var(--mono);font-size:13px;min-width:56px;text-align:right}
+.btn{font:inherit;font-size:13.5px;padding:7px 14px;border:1px solid var(--line-2);border-radius:8px;background:var(--panel);color:var(--ink);cursor:pointer}
+.btn:hover{border-color:var(--ink-3)}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
+.notes p{margin:4px 0 0;color:var(--ink-2);font-size:14px}
+.notes h2{font-size:14px;font-weight:600;margin:0}
+code{font-family:var(--mono);font-size:.92em}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <header>
+    <div class="eyebrow">Two coupled S = ½ spins</div>
+    <h1>Exchange vs dipolar coupling</h1>
+    <p class="sub">Drag across the pad to set the exchange coupling J (negative to positive) and up it to set the dipolar coupling ν<sub>dd</sub>. The right panel shows the powder EPR spectrum, or the same physics as two pendulums joined by a spring.</p>
+    <div class="ham">H = ω<sub>A</sub>S<sub>1z</sub> + ω<sub>B</sub>S<sub>2z</sub> + J S<sub>1</sub>·S<sub>2</sub> + ν<sub>dd</sub>(1 − 3cos²θ)[S<sub>1z</sub>S<sub>2z</sub> − ¼(S<sub>1</sub><sup>+</sup>S<sub>2</sub><sup>−</sup> + S<sub>1</sub><sup>−</sup>S<sub>2</sub><sup>+</sup>)] &nbsp;·&nbsp; ω<sub>A</sub> − ω<sub>B</sub> = Δ = 20 MHz</div>
+  </header>
+
+  <div class="bench">
+    <section class="panel" aria-label="Coupling control pad">
+      <div class="eyebrow">Control pad</div>
+      <canvas id="pad" width="340" height="340" tabindex="0" role="slider" aria-label="Coupling pad. Left and right arrows change J, up and down change dipolar coupling."></canvas>
+      <p class="hint">Dashed lines mark |J| = Δ and ν<sub>dd</sub> = Δ. Solid line is J = 0. Arrow keys nudge the dot.</p>
+      <button class="btn" id="zero" type="button">Reset J to 0</button>
+    </section>
+
+    <section class="panel" aria-label="Readout">
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" id="vS" aria-pressed="true">Spectrum</button>
+        <button type="button" id="vP" aria-pressed="false">Pendulums</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="k">Exchange J</div><div class="v" id="oJ">–</div></div>
+        <div class="stat"><div class="k">Dipolar ν<sub>dd</sub></div><div class="v" id="oD">–</div></div>
+        <div class="stat"><div class="k" id="k3">Distance r</div><div class="v" id="oR">–</div></div>
+      </div>
+      <div class="view" id="specBox"><canvas id="spec" role="img" aria-label="First-derivative powder EPR spectrum of the coupled spin pair"></canvas></div>
+      <div class="view" id="pendBox" hidden><canvas id="pend" role="img" aria-label="Two pendulums for the two spins, spaced by the inter-spin distance and joined by a spring whose stiffness is the flip-flop coupling"></canvas></div>
+      <p class="regime" id="regime" aria-live="polite"></p>
+      <div class="row" id="thRow" hidden>
+        <label for="th">Orientation θ</label>
+        <input type="range" id="th" min="0" max="90" step="0.5" value="90">
+        <output id="tho" for="th"></output>
+      </div>
+      <div class="row" id="kickRow" hidden><button class="btn" id="kick" type="button">Kick spin A again</button></div>
+    </section>
+  </div>
+
+  <section class="notes" aria-label="Notes">
+    <div><h2>Spectrum</h2><p>First-derivative, field-swept style display on a frequency axis, powder-averaged over θ with a 2 MHz Gaussian line. The g offset is fixed at Δ = 20 MHz so the weak and strong regimes have a fixed boundary.</p></div>
+    <div><h2>Pendulums</h2><p>Each pendulum is a spin; the 20 MHz detuning makes them slightly different lengths. The spring is the flip-flop term J − d/2, where d = ν<sub>dd</sub>(1 − 3cos²θ). Energy moved from A to B peaks at B²/(Δ² + B²) and repeats every 1/√(Δ² + B²).</p></div>
+    <div><h2>Distance</h2><p>Pendulum spacing follows r = (52.04 / ν<sub>dd</sub>)<sup>1/3</sup> nm. J is treated as an independent knob here; in real molecules it falls off steeply with distance and depends on the bridge.</p></div>
+  </section>
+</div>
+
+<script>
+(function(){
+const JMAX=80,DMAX=40,FR=120,NP=600,NC=300,DL=20,LW=2,RMIN=1.1,RMAX=4;
+let J=10,D=8,view='S',t0=performance.now(),raf=null,sepNow=null;
+const $=id=>document.getElementById(id);
+const pad=$('pad'),sp=$('spec'),pe=$('pend'),th=$('th');
+const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const rOf=d=>d>0.01?Math.cbrt(52.04/d):Infinity;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)');
+
+function fit(cv){const dpr=devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;if(!W||!H)return null;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr)}
+  const c=cv.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);return{c,W,H}}
+
+function drawPad(){
+  const f=fit(pad);if(!f)return;const{c,W,H}=f;
+  const xOf=j=>(j+JMAX)/(2*JMAX)*W;
+  const xl=xOf(-DL),xr=xOf(DL),yd=H-DL/DMAX*H;
+  c.fillStyle=tok('--panel');c.fillRect(0,0,W,H);
+  c.fillStyle=tok('--q-strong');c.fillRect(0,0,xl,yd);c.fillRect(xr,0,W-xr,yd);
+  c.fillStyle=tok('--q-pake');c.fillRect(xl,0,xr-xl,yd);
+  c.fillStyle=tok('--q-neg');c.fillRect(0,yd,xl,H-yd);
+  c.fillStyle=tok('--q-weak');c.fillRect(xl,yd,xr-xl,H-yd);
+  c.fillStyle=tok('--q-pos');c.fillRect(xr,yd,W-xr,H-yd);
+  c.strokeStyle=tok('--ink-3');c.lineWidth=1;
+  c.beginPath();c.moveTo(W/2,0);c.lineTo(W/2,H);c.stroke();
+  c.setLineDash([4,4]);c.beginPath();c.moveTo(xl,0);c.lineTo(xl,H);c.moveTo(xr,0);c.lineTo(xr,H);c.moveTo(0,yd);c.lineTo(W,yd);c.stroke();c.setLineDash([]);
+  const sans=tok('--sans');
+  const lab=(t,s,x,y,al)=>{c.textAlign=al;c.fillStyle=tok('--ink');c.font='500 12px '+sans;c.fillText(t,x,y);c.fillStyle=tok('--ink-2');c.font='11px '+sans;c.fillText(s,x,y+14)};
+  lab('Pake pattern','dipolar dominates',W/2,18,'center');
+  lab('Strong, J < 0','triplet-like',7,18,'left');
+  lab('Strong, J > 0','triplet-like',W-7,18,'right');
+  lab('Weak','Δ dominates',W/2,H-46,'center');
+  lab('J < 0','exchange',7,H-46,'left');
+  lab('J > 0','exchange',W-7,H-46,'right');
+  c.fillStyle=tok('--ink-3');c.font='11px '+tok('--mono');
+  c.textAlign='left';c.fillText('−'+JMAX,5,H-7);c.textAlign='right';c.fillText('+'+JMAX,W-5,H-7);
+  c.textAlign='center';c.font='11px '+sans;c.fillText('← J (MHz) →',W/2,H-7);
+  c.save();c.translate(W-8,H/2-20);c.rotate(Math.PI/2);c.fillText('ν_dd 0 → 40 MHz',0,0);c.restore();
+  const x=xOf(J),y=H-D/DMAX*H;
+  c.beginPath();c.arc(x,y,9,0,7);c.fillStyle=tok('--accent');c.fill();c.lineWidth=2.5;c.strokeStyle=tok('--panel');c.stroke();
+}
+
+function simulate(){
+  const h=new Float64Array(NP),df=2*FR/NP;
+  for(let k=0;k<NC;k++){
+    const cc=(k+.5)/NC,d=D*(1-3*cc*cc),A=J+d,B=J-d/2,C=Math.sqrt(DL*DL+B*B),s=B/C;
+    const L=[[A/2-C/2,1+s],[A/2+C/2,1-s],[-A/2+C/2,1+s],[-A/2-C/2,1-s]];
+    for(const[f,I]of L){const i=Math.floor((f+FR)/df);if(i>=0&&i<NP)h[i]+=I}
+  }
+  const sig=LW/df,R=Math.ceil(sig*4),g=[];for(let i=-R;i<=R;i++)g.push(Math.exp(-i*i/(2*sig*sig)));
+  const y=new Float64Array(NP);
+  for(let i=0;i<NP;i++)if(h[i])for(let j=-R;j<=R;j++){const t=i+j;if(t>=0&&t<NP)y[t]+=h[i]*g[j+R]}
+  const dy=new Float64Array(NP);for(let i=1;i<NP-1;i++)dy[i]=(y[i+1]-y[i-1])/2;return dy;
+}
+
+function drawSpec(){
+  const f=fit(sp);if(!f)return;const{c,W,H}=f;
+  const y=simulate();let mx=0;for(const v of y)mx=Math.max(mx,Math.abs(v));mx=mx||1;
+  const pl=10,pr=10,pt=10,pb=26,pw=W-pl-pr,ph=H-pt-pb,base=pt+ph/2;
+  c.strokeStyle=tok('--line');c.lineWidth=1;
+  for(let fq=-100;fq<=100;fq+=50){const x=pl+(fq+FR)/(2*FR)*pw;c.beginPath();c.moveTo(x,pt);c.lineTo(x,pt+ph);c.stroke()}
+  c.strokeStyle=tok('--line-2');c.beginPath();c.moveTo(pl,base);c.lineTo(pl+pw,base);c.stroke();
+  c.fillStyle=tok('--ink-3');c.font='11px '+tok('--mono');c.textAlign='center';
+  for(let fq=-100;fq<=100;fq+=50){const x=pl+(fq+FR)/(2*FR)*pw;c.fillText(fq,x,H-8)}
+  c.textAlign='right';c.font='11px '+tok('--sans');c.fillText('MHz',W-pr,H-8);
+  c.textAlign='left';c.fillText('dχ″/dB',pl+2,pt+12);
+  c.strokeStyle=tok('--trace');c.lineWidth=2;c.lineJoin='round';c.lineCap='round';c.beginPath();
+  const sc=ph/2*0.94;
+  for(let i=0;i<NP;i++){const x=pl+i/(NP-1)*pw,yy=base-y[i]/mx*sc;i?c.lineTo(x,yy):c.moveTo(x,yy)}c.stroke();
+}
+
+function coupling(){const cc=Math.cos(+th.value*Math.PI/180),d=D*(1-3*cc*cc);return{d,B:J-d/2}}
+
+function drawPend(now){
+  const f=fit(pe);if(!f)return;const{c,W,H}=f;
+  const{B}=coupling(),C=Math.sqrt(DL*DL+B*B),tau=(now-t0)/1000,t=tau/100;
+  const s=Math.sin(Math.PI*C*t),co=Math.cos(Math.PI*C*t);
+  const a1r=co,a1i=-s*DL/C,a2r=0,a2i=-s*B/C;
+  const phs=2*Math.PI*1.6*tau,cr=Math.cos(phs),si=Math.sin(phs);
+  const x1=a1r*cr+a1i*si,x2=a2r*cr+a2i*si,E1=a1r*a1r+a1i*a1i,E2=a2r*a2r+a2i*a2i;
+  const r=rOf(D),rc=Math.min(Math.max(r,RMIN),RMAX),target=(0.16+0.6*(rc-RMIN)/(RMAX-RMIN))*W;
+  sepNow=sepNow==null?target:sepNow+(target-sepNow)*0.2;
+  const amp=0.45,L=Math.min(140,H-90),py=30,cx1=W/2-sepNow/2,cx2=W/2+sepNow/2,sans=tok('--sans');
+  c.strokeStyle=tok('--ink-3');c.lineWidth=2;c.beginPath();c.moveTo(W*0.05,py);c.lineTo(W*0.95,py);c.stroke();
+  c.lineWidth=1;c.beginPath();c.moveTo(cx1,py-12);c.lineTo(cx2,py-12);c.moveTo(cx1,py-16);c.lineTo(cx1,py-8);c.moveTo(cx2,py-16);c.lineTo(cx2,py-8);c.stroke();
+  const rl=r>RMAX?'r > '+RMAX+' nm':'r = '+r.toFixed(2)+' nm';
+  c.font='11px '+tok('--mono');c.textAlign='center';
+  const tw=c.measureText(rl).width+10;c.fillStyle=tok('--panel');c.fillRect(W/2-tw/2,py-20,tw,14);
+  c.fillStyle=tok('--ink-2');c.fillText(rl,W/2,py-9);
+  const tip=(cx,ang,l)=>[cx+l*Math.sin(ang),py+l*Math.cos(ang)];
+  const g1=amp*x1,g2=amp*x2,ls=L*0.55,s1=tip(cx1,g1,ls),s2=tip(cx2,g2,ls);
+  const k=Math.min(Math.abs(B)/40,1);
+  if(Math.abs(B)>0.3){
+    c.strokeStyle=B>0?tok('--pos'):tok('--neg');c.lineWidth=1+3*k;c.lineJoin='round';c.beginPath();
+    const dx=s2[0]-s1[0],dy=s2[1]-s1[1],len=Math.hypot(dx,dy)||1,ux=dx/len,uy=dy/len,n=Math.max(6,Math.round(len/10));
+    c.moveTo(...s1);
+    for(let i=1;i<n;i++){const fr=i/n,o=(i%2?1:-1)*(6+4*(1-k));c.lineTo(s1[0]+dx*fr-uy*o,s1[1]+dy*fr+ux*o)}
+    c.lineTo(...s2);c.stroke();
+  }else{c.setLineDash([3,4]);c.strokeStyle=tok('--ink-3');c.lineWidth=1;c.beginPath();c.moveTo(...s1);c.lineTo(...s2);c.stroke();c.setLineDash([])}
+  [[cx1,g1,tok('--spin-a'),'A'],[cx2,g2,tok('--spin-b'),'B']].forEach(([cx,g,col,nm])=>{
+    const b=tip(cx,g,L);c.strokeStyle=tok('--ink-2');c.lineWidth=1.5;c.beginPath();c.moveTo(cx,py);c.lineTo(...b);c.stroke();
+    c.beginPath();c.arc(cx,py,3,0,7);c.fillStyle=tok('--ink-2');c.fill();
+    c.beginPath();c.arc(...b,14,0,7);c.fillStyle=col;c.fill();
+    c.fillStyle='#ffffff';c.font='600 12px '+sans;c.textAlign='center';c.textBaseline='middle';c.fillText(nm,...b);c.textBaseline='alphabetic';
+  });
+  const by=H-30,bw=W*0.3;
+  [[W*0.27,E1,tok('--spin-a'),'spin A'],[W*0.73,E2,tok('--spin-b'),'spin B']].forEach(([cx,E,col,nm])=>{
+    c.fillStyle=tok('--line');c.fillRect(cx-bw/2,by,bw,8);
+    c.fillStyle=col;c.fillRect(cx-bw/2,by,bw*E,8);
+    c.fillStyle=tok('--ink-2');c.font='11px '+sans;c.textAlign='center';c.fillText(nm+' energy '+Math.round(E*100)+'%',cx,by+22);
+  });
+}
+
+function loop(now){drawPend(reduce.matches?t0+1500:now);raf=(view==='P'&&!reduce.matches)?requestAnimationFrame(loop):null}
+
+function update(){
+  const aJ=Math.abs(J);
+  $('tho').textContent=(+th.value).toFixed(1)+'°';
+  $('oJ').textContent=(J<-0.05?'−':J>0.05?'+':'')+aJ.toFixed(1)+' MHz';
+  $('oD').textContent=D.toFixed(1)+' MHz';
+  pad.setAttribute('aria-valuetext','J '+J.toFixed(1)+' MHz, dipolar '+D.toFixed(1)+' MHz');
+  let t;
+  if(view==='S'){
+    $('k3').textContent='Distance r';
+    $('oR').textContent=D>0.3?rOf(D).toFixed(2)+' nm':'> 5.6 nm';
+    const jr=aJ/DL,dr=D/DL,sg=J<0?'negative':'positive';
+    if(aJ<0.5&&D<0.5)t='Uncoupled: two independent lines separated by Δ.';
+    else if(jr<1&&dr<1)t='Weak coupling: each line splits into a doublet. Flipping the sign of J swaps which component of each doublet the dipolar broadening adds to.';
+    else if(jr>=1&&dr<1)t='Strong exchange ('+sg+' J, |J| > Δ): inner lines grow, outer lines fade, and the spectrum collapses toward one central line. With ν_dd ≈ 0 the sign of J is invisible.';
+    else if(jr<1&&dr>=1)t='Strong dipolar (ν_dd > Δ): a Pake doublet, heading toward the 3/2-scaled like-spin limit.';
+    else t='Both strong ('+sg+' J): triplet-like spectrum. J and the dipolar term add or cancel depending on sign, so the shape is not symmetric about J = 0.';
+    drawSpec();
+  }else{
+    const{B}=coupling(),C=Math.sqrt(DL*DL+B*B),fr=B*B/(C*C);
+    $('k3').textContent='Max transfer';
+    $('oR').textContent=Math.round(fr*100)+'%';
+    const per=(1000/C).toFixed(0)+' ns';
+    const spr=Math.abs(B)<0.3?'No spring (J − d/2 ≈ 0): the pendulums swing independently, however close they are.':
+      'Spring stiffness J − d/2 = '+B.toFixed(1)+' MHz ('+(B>0?'orange, positive':'green, negative')+'). Energy goes A → B → A every '+per+'.';
+    const tune=fr>0.8?' The spring beats the detuning: near-complete swap, and the pendulums lock into in-phase and anti-phase modes (triplet and singlet).':fr<0.2?' The detuning beats the spring: only a little energy leaks across (weak coupling).':' Partial transfer: spring and detuning are comparable.';
+    t=spr+tune;
+    if(!raf)drawPend(reduce.matches?t0+1500:performance.now());
+  }
+  $('regime').textContent=t;
+  drawPad();
+}
+
+function setView(v){
+  view=v;$('vS').setAttribute('aria-pressed',v==='S');$('vP').setAttribute('aria-pressed',v==='P');
+  $('specBox').hidden=v!=='S';$('pendBox').hidden=v!=='P';$('thRow').hidden=v!=='P';$('kickRow').hidden=v!=='P';
+  if(v==='P'){t0=performance.now();sepNow=null}
+  update();
+  if(v==='P'&&!raf&&!reduce.matches)raf=requestAnimationFrame(loop);
+}
+
+function setFrom(e){const r=pad.getBoundingClientRect();const x=Math.min(Math.max((e.clientX-r.left)/r.width,0),1),y=Math.min(Math.max((e.clientY-r.top)/r.height,0),1);J=(2*x-1)*JMAX;if(Math.abs(J)<1)J=0;D=(1-y)*DMAX;update()}
+let drag=false;
+pad.addEventListener('pointerdown',e=>{drag=true;pad.setPointerCapture(e.pointerId);setFrom(e)});
+pad.addEventListener('pointermove',e=>{if(drag)setFrom(e)});
+pad.addEventListener('pointerup',()=>{drag=false;if(view==='P')t0=performance.now()});
+pad.addEventListener('keydown',e=>{const st=e.shiftKey?5:1;let h=true;
+  if(e.key==='ArrowLeft')J=Math.max(-JMAX,J-st);else if(e.key==='ArrowRight')J=Math.min(JMAX,J+st);
+  else if(e.key==='ArrowUp')D=Math.min(DMAX,D+st);else if(e.key==='ArrowDown')D=Math.max(0,D-st);else h=false;
+  if(h){e.preventDefault();update();if(view==='P')t0=performance.now()}});
+th.addEventListener('input',update);
+th.addEventListener('change',()=>{if(view==='P')t0=performance.now()});
+$('vS').onclick=()=>setView('S');$('vP').onclick=()=>setView('P');
+$('kick').onclick=()=>{t0=performance.now();if(reduce.matches)update()};
+$('zero').onclick=()=>{J=0;update();t0=performance.now()};
+let rs;window.addEventListener('resize',()=>{clearTimeout(rs);rs=setTimeout(update,60)});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',update);
+new MutationObserver(update).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(update);
+update();
+})();
+</script>
+
+</body>
+</html>
